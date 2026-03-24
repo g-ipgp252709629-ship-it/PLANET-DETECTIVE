@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Planet Detective 🕵️‍♂️</title>
+  <style>
+    :root {
+      --bg: #0b132b;
+      --card: #1a1a2e;
+      --highlight: #4cc9f0;
+      --text: #e4e4e4;
+      --correct: #a29bfe;
+      --wrong: #f72585;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--highlight);
+      margin-bottom: 8px;
+      font-size: 1.8em;
+      text-shadow: 0 0 10px rgba(76, 201, 240, 0.5);
+    }
+
+    p {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      opacity: 0.9;
+    }
+
+    #game {
+      max-width: 700px;
+      margin: 0 auto;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    #case-file {
+      font-size: 0.95em;
+      padding: 15px;
+      background: #16213e;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      border-left: 4px solid var(--highlight);
+    }
+
+    #clue {
+      font-size: 1.1em;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(76, 201, 240, 0.1);
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    #answer-box {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    #answer-input {
+      width: 70%;
+      max-width: 300px;
+      padding: 8px;
+      border: 2px solid var(--highlight);
+      background: #0f0f1f;
+      color: white;
+      border-radius: 6px;
+      font-size: 0.95em;
+    }
+
+    button {
+      padding: 9px 14px;
+      border: 2px solid var(--highlight);
+      background: transparent;
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95em;
+      margin: 0 5px;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--highlight);
+      color: black;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin-top: 15px;
+      padding: 8px;
+      text-align: center;
+      font-weight: 600;
+      border-radius: 6px;
+    }
+
+    #status.correct {
+      background: rgba(162, 155, 254, 0.3);
+      color: var(--correct);
+    }
+
+    #status.wrong {
+      background: rgba(247, 37, 133, 0.3);
+      color: var(--wrong);
+    }
+
+    #score {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 1.1em;
+      color: var(--highlight);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    audio {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>🕵️‍♂️ Planet Detective</h1>
+  <p>Use the case file and clues to guess the hidden planet or space object!</p>
+
+  <!-- SOUND -->
+  <audio id="correct-sound">
+    <source src="https://cdn.pixabay.com/audio/2024/01/25/audio_36736db1dc.mp3" type="audio/mp3">
+  </audio>
+
+  <audio id="wrong-sound">
+    <source src="https://cdn.pixabay.com/audio/2022/07/17/audio_11330ec943.mp3" type="audio/mp3">
+  </audio>
+
+  <div id="game">
+    <div id="case-file">Case file loading...</div>
+    <div id="clue">Clue will appear here.</div>
+    <div id="answer-box">
+      <input type="text" id="answer-input" placeholder="Enter your guess (e.g., Earth)" />
+      <button id="check-btn" onclick="checkGuess()">Check</button>
+      <button id="hint-btn" onclick="giveHint()">Show Hint</button>
+    </div>
+    <div id="status" class="hidden"></div>
+    <div id="score">Score: 0 correct answers so far.</div>
+    <button id="start-btn" onclick="startRound()" style="display: block; margin-top: 15px;">
+      Start New Case 🚀
+    </button>
+  </div>
+
+  <script>
+    // --- Data: bodies and their facts ---
+    const bodies = [
+      "Sun",
+      "Mercury",
+      "Venus",
+      "Earth",
+      "Mars",
+      "Jupiter",
+      "Saturn",
+      "Uranus",
+      "Neptune",
+      "Pluto",
+      "Asteroids",
+      "Meteoroids, Meteors, and Meteorites",
+      "Comets"
+    ];
+
+    const facts = {
+      "Sun": [
+        "huge ball of hot gases, mostly hydrogen and helium",
+        "diameter is about 1.39 million km (≈109× Earth)",
+        "surface temperature about 5,500°C; core about 15 million°C",
+        "provides light and heat for life on Earth",
+        "sunlight takes about 8 minutes to reach Earth"
+      ],
+      "Mercury": [
+        "closest planet to the Sun",
+        "diameter about 4,880 km (smaller than Earth)",
+        "day temperature about 430°C, night about −180°C",
+        "rocky surface covered with many craters",
+        "one year ≈ 88 Earth days; one day ≈ 59 Earth days"
+      ],
+      "Venus": [
+        "second planet from the Sun",
+        "diameter about 12,100 km (almost Earth’s size)",
+        "hottest planet, surface about 465°C",
+        "thick atmosphere of carbon dioxide and clouds of sulfuric acid",
+        "rotates backward; one day longer than one year"
+      ],
+      "Earth": [
+        "third planet from the Sun",
+        "diameter about 12,742 km",
+        "atmosphere about 78% nitrogen and 21% oxygen",
+        "about 71% of surface is water",
+        "has one natural satellite, the Moon; only planet known to support life"
+      ],
+      "Mars": [
+        "fourth planet from the Sun",
+        "diameter about 6,779 km (about half Earth’s size)",
+        "surface is red because of iron oxide",
+        "has mountains, valleys, and polar ice caps",
+        "temperature about −125°C to 20°C",
+        "has two small moons: Phobos and Deimos",
+        "has the largest volcano in the solar system, Olympus Mons"
+      ],
+      "Jupiter": [
+        "fifth planet from the Sun and the largest in the system",
+        "diameter about 139,820 km",
+        "made mostly of hydrogen and helium",
+        "has a giant storm called the Great Red Spot",
+        "has more than 70 moons, including Ganymede (largest moon in the system)",
+        "has a very strong magnetic field and faint rings"
+      ],
+      "Saturn": [
+        "sixth planet from the Sun",
+        "diameter about 116,460 km",
+        "made mostly of gas with large rings of ice and rock",
+        "has more than 80 moons, including Titan (larger than Mercury)",
+        "has very fast winds up to about 1,800 km/h",
+        "density so low it would float in water if a big enough ocean existed"
+      ],
+      "Uranus": [
+        "seventh planet from the Sun",
+        "diameter about 50,724 km",
+        "made of hydrogen, helium, and icy materials",
+        "spins on its side at an angle of about 98 degrees",
+        "appears blue because of methane in its atmosphere",
+        "very cold, down to about −224°C",
+        "has 27 known moons"
+      ],
+      "Neptune": [
+        "eighth planet from the Sun",
+        "diameter about 49,244 km",
+        "made of hydrogen, helium, and methane gas",
+        "has the strongest winds in the system, up to about 2,100 km/h",
+        "appears deep blue",
+        "has 14 known moons, including Triton",
+        "one year ≈ 165 Earth years"
+      ],
+      "Pluto": [
+        "small dwarf planet far from the Sun",
+        "diameter about 2,377 km",
+        "frozen surface; temperature about −229°C",
+        "has five known moons, with Charon the largest",
+        "takes about 248 Earth years to orbit the Sun",
+        "sometimes closer to the Sun than Neptune"
+      ],
+      "Asteroids": [
+        "small, rocky objects that orbit the Sun",
+        "most found in the asteroid belt between Mars and Jupiter",
+        "can be very small or several hundred km across",
+        "made of rock, metal, or both",
+        "scientists study them to learn about the early solar system"
+      ],
+      "Meteoroids, Meteors, and Meteorites": [
+        "meteoroids are small pieces of rock or metal in space",
+        "when entering Earth’s atmosphere and burning up → meteor (‘shooting star’)",
+        "if it survives and lands on Earth → meteorite",
+        "most meteoroids are very small, but some large enough to make craters"
+      ],
+      "Comets": [
+        "icy bodies that orbit the Sun in long, oval paths",
+        "made of ice, dust, and rock",
+        "when close to the Sun, they heat up and form a glowing tail",
+        "the tail always points away from the Sun",
+        "famous comets like Halley’s Comet can be seen every few decades"
+      ]
+    };
+
+    const correctSound = document.getElementById("correct-sound");
+    const wrongSound = document.getElementById("wrong-sound");
+
+    const caseFileEl = document.getElementById("case-file");
+    const clueEl = document.getElementById("clue");
+    const answerInput = document.getElementById("answer-input");
+    const checkBtn = document.getElementById("check-btn");
+    const hintBtn = document.getElementById("hint-btn");
+    const statusEl = document.getElementById("status");
+    const scoreEl = document.getElementById("score");
+    const startBtn = document.getElementById("start-btn");
+
+    let solution = "";    // the hidden planet/object
+    let clues = [];       // list of clues for this round
+    let clueIndex = 0;    // current clue number
+    let solved = false;   // whether the player guessed correctly
+    let totalScore = 0;   // total correct guesses over many rounds
+
+    function randomItem(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function playCorrectSound() {
+      correctSound.currentTime = 0;
+      correctSound.play().catch(e => console.log("Audio play blocked:", e));
+    }
+
+    function playWrongSound() {
+      wrongSound.currentTime = 0;
+      wrongSound.play().catch(e => console.log("Audio play blocked:", e));
+    }
+
+    function clearStatus() {
+      statusEl.textContent = "";
+      statusEl.classList.remove("correct", "wrong", "hidden");
+    }
+
+    function showStatus(msg, type) {
+      statusEl.textContent = msg;
+      statusEl.classList.remove("correct", "wrong", "hidden");
+      statusEl.classList.add(type);
+    }
+
+    // Generate a new case
+    function startRound() {
+      // pick a random body
+      solution = randomItem(bodies);
+      const bodyFacts = facts[solution];
+
+      // create a short case file (first 2–3 facts)
+      const nCase = Math.min(2, bodyFacts.length);
+      const caseLines = bodyFacts.slice(0, nCase).map(f => `- ${f}`);
+      caseFileEl.innerHTML = `
+        Classified Case File<br>
+        <strong>Unknown Space Object: ${solution}</strong><br>
+        <br>
+        ${caseLines.join("<br>")}
+      `;
+
+      // generate 3–4 clues from its facts
+      const nClues = Math.min(3, bodyFacts.length);
+      const allFacts = bodyFacts.slice();
+      clues = [];
+      for (let i = 0; i < nClues; i++) {
+        const idx = Math.floor(Math.random() * allFacts.length);
+        clues.push(allFacts.splice(idx, 1)[0]);
+      }
+
+      clueIndex = 0;
+      solved = false;
+      hintUsed = false;
+
+      clueEl.textContent = clues[0];
+      answerInput.value = "";
+      checkBtn.disabled = false;
+      hintBtn.disabled = false;
+      clearStatus();
+    }
+
+    let hintUsed = false;
+    function giveHint() {
+      if (hintUsed) return;
+      hintUsed = true;
+      hintBtn.disabled = true;
+      showStatus(`Hint: It starts with "${solution.charAt(0)}" (and ends with "${solution.slice(-1)}").`, "wrong");
+    }
+
+    function checkGuess() {
+      if (solved) return;
+
+      const guess = answerInput.value.trim();
+      if (!guess) {
+        showStatus("Please type a guess first.", "wrong");
+        return;
+      }
+
+      if (guess.toLowerCase() === solution.toLowerCase()) {
+        solved = true;
+        totalScore++;
+        playCorrectSound();
+        showStatus(`✅ Correct! It was "${solution}"!`, "correct");
+        checkBtn.disabled = true;
+        hintBtn.disabled = true;
+      } else {
+        playWrongSound();
+        if (clueIndex < clues.length - 1) {
+          clueIndex++;
+          clueEl.textContent = clues[clueIndex];
+          showStatus("❌ Wrong. Here is another clue.", "wrong");
+        } else {
+          showStatus(`💀 You ran out of clues. The answer was: "${solution}".`, "wrong");
+          checkBtn.disabled = true;
+          hintBtn.disabled = true;
+        }
+      }
+
+      scoreEl.textContent = `Score: ${totalScore} correct case(s).`;
+    }
+
+    // initial setup
+    startBtn.onclick = startRound;
+    answerInput.onkeypress = e => { if (e.key === "Enter") checkGuess(); };
+
+    // show welcome screen
+    caseFileEl.textContent = "No case open yet. Press the Start New Case button to begin!";
+    clueEl.textContent = "Detective, are you ready for your first assignment?";
+  </script>
+</body>
+</html>
